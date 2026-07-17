@@ -1,0 +1,9 @@
+{
+  "buildCommand": "npx next build",
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/"
+    }
+  ]
+}
