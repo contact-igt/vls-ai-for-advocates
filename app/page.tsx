@@ -218,7 +218,7 @@ function RegistrationForm({ compact = false }: { compact?: boolean }) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ amount: MASTERCLASS_CONFIG.amount }),
-        body: JSON.stringify({ amount: 1 }),
+        // body: JSON.stringify({ amount: 1 }),
       });
 
       if (!res.ok) {
