@@ -137,19 +137,19 @@ const faqs = [
   ],
   [
     "What are the date, fee, language, and session mode?",
-    "The masterclass will be held on 26 July. It will be conducted Online in Tamil. The enrollment fee is ₹499.",
+    "The masterclass will be held on 15 August. It will be conducted Online in Tamil. The enrollment fee is ₹499.",
   ],
 ];
 
 const MASTERCLASS_CONFIG = {
   title: "AI for Advocates",
   amount: 499,
-  programm_date: "2026-07-26",
+  programm_date: "2026-08-15",
   page_name: "ai-for-advocates",
   whatsapp_programm_name: "3-hour AI for Advocates masterclass",
-  whatsapp_schedule: "Sunday, July 26, 2026 10:30 AM - 01:30 PM IST",
+  whatsapp_schedule: "Saturday, August 15, 2026 10:30 AM - 01:30 PM IST",
   whatsapp_platform: "Google Meet",
-  whatsapp_link_date: "Saturday, 25 July",
+  whatsapp_link_date: "Friday, 14 August",
   google_sheet_url: "https://script.google.com/macros/s/AKfycbzfD03oohvLJa2PbFd28v-YJsgEizuuczoyMleifFlAuGbl23TpV29FyhM_FaW41mxo/exec"
 };
 
@@ -217,8 +217,8 @@ function RegistrationForm({ compact = false }: { compact?: boolean }) {
       const res = await fetch("/api/create-order", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ amount: MASTERCLASS_CONFIG.amount }),
-        // body: JSON.stringify({ amount: 1 }),
+        // body: JSON.stringify({ amount: MASTERCLASS_CONFIG.amount }),
+        body: JSON.stringify({ amount: 1 }),
       });
 
       if (!res.ok) {
@@ -231,6 +231,7 @@ function RegistrationForm({ compact = false }: { compact?: boolean }) {
       // Open Razorpay Checkout
       const options = {
         key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
+        // key: "rzp_test_Ss2NFtpJFLRAiw",
         amount: order.amount,
         currency: order.currency,
         name: name || "Advocate",
@@ -678,7 +679,7 @@ export default function Home() {
               <a className="text-link" href="#curriculum">Explore the curriculum <span>↓</span></a>
             </div>
             <div className="event-note">
-              <span className="pulse" /> Date: 26 July · Mode: Online · Language: Tamil · Fee: ₹499
+              <span className="pulse" /> Date: 15 August · Mode: Online · Language: Tamil · Fee: ₹499
             </div>
           </div>
           <div className="hero-side">
@@ -967,9 +968,9 @@ export default function Home() {
           <div className="enrollment-copy">
             <span className="kicker light">Early access enrollment</span>
             <h2>Your legal knowledge.<br /><em>Enhanced by AI.</em></h2>
-            <p>Register now to secure your spot for the masterclass on 26 July, conducted online in Tamil.</p>
+            <p>Register now to secure your spot for the masterclass on 15 August, conducted online in Tamil.</p>
             <div className="event-tags">
-              <span>Date · 26 July</span>
+              <span>Date · 15 August</span>
               <span>Mode · Online</span>
               <span>Language · Tamil</span>
               <span>Fee · ₹499</span>
