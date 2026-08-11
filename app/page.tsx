@@ -217,8 +217,8 @@ function RegistrationForm({ compact = false }: { compact?: boolean }) {
       const res = await fetch("/api/create-order", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ amount: MASTERCLASS_CONFIG.amount }),
-        // body: JSON.stringify({ amount: 1 }),
+        // body: JSON.stringify({ amount: MASTERCLASS_CONFIG.amount }),
+        body: JSON.stringify({ amount: 1 }),
       });
 
       if (!res.ok) {
@@ -298,6 +298,51 @@ function RegistrationForm({ compact = false }: { compact?: boolean }) {
             });
           } catch (err) {
             console.error("Failed to save to Google Sheets:", err);
+          }
+
+          // Submit to Invictus Lead Backend API
+          try {
+            const getApiBaseUrl = () => {
+              if (
+                typeof window !== "undefined" &&
+                (window.location.hostname === "localhost" ||
+                  window.location.hostname === "127.0.0.1")
+              ) {
+                return (
+                  process.env.NEXT_PUBLIC_LOCALHOST_API_URL ||
+                  "http://localhost:8000/api/v1"
+                );
+              }
+              const server = process.env.NEXT_PUBLIC_API_SERVER;
+              if (server === "production") {
+                return (
+                  process.env.NEXT_PUBLIC_PRODUCTION_API_URL ||
+                  "https://invictusleadbackend-production.up.railway.app/api/v1"
+                );
+              }
+              if (server === "stage") {
+                return (
+                  process.env.NEXT_PUBLIC_STAGE_API_URL ||
+                  "https://stageapi.invictusglobaltech.com/api/v1"
+                );
+              }
+              return (
+                process.env.NEXT_PUBLIC_LOCALHOST_API_URL ||
+                "http://localhost:8000/api/v1"
+              );
+            };
+
+            const baseUrl = getApiBaseUrl();
+            await fetch(`${baseUrl}/vls-ai-for-advocates/register`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "X-Client-Key": "vls_law",
+              },
+              body: JSON.stringify(apiPayload),
+            });
+          } catch (err) {
+            console.error("Failed to save to Invictus Backend API:", err);
           }
 
           // Store in LocalStorage and redirect
