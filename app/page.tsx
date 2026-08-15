@@ -8,6 +8,7 @@ import CountUpModule from "react-countup";
 import {
   isRegistrationOpen,
   getSectionCtaText,
+  getProgramDate,
   PRICE_ANNOUNCEMENT_TEXT,
   DATE_TIME_ANNOUNCEMENT_TEXT,
 } from "@/utils/programStatus";
@@ -272,7 +273,7 @@ function RegistrationForm({ compact = false }: { compact?: boolean }) {
       mobile: `+91${cleanMobile}`,
       yearsOfPractice: experience,
       amount: "",
-      programm_date: MASTERCLASS_CONFIG.programm_date,
+      programm_date: getProgramDate(MASTERCLASS_CONFIG),
       razorpay_order_id: "",
       razorpay_payment_id: "",
       razorpay_signature: "",
@@ -325,7 +326,7 @@ function RegistrationForm({ compact = false }: { compact?: boolean }) {
       console.error("Failed to save local details:", err);
     }
 
-    window.location.href = "/thank-you";
+    window.location.href = "/thank-you?status=waitlist";
   };
 
   const handleAgreeAndPay = async () => {
@@ -436,7 +437,7 @@ function RegistrationForm({ compact = false }: { compact?: boolean }) {
             console.error("Failed to save local details:", err);
           }
 
-          window.location.href = "/thank-you";
+          window.location.href = "/thank-you?status=paid";
         },
         modal: {
           ondismiss: () => {
