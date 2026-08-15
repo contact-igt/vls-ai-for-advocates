@@ -42,3 +42,11 @@ export const getSessionDisplay = (programConfig?: ProgramConfig): string => {
     ? `${programConfig.date} - ${programConfig.time}`
     : DATE_TIME_ANNOUNCEMENT_TEXT;
 };
+
+export const getProgramDate = (programConfig?: ProgramConfig): string => {
+  if (!isRegistrationOpen(programConfig)) {
+    return "TBA";
+  }
+  return (programConfig?.date as string) || (programConfig?.programm_date as string) || "TBA";
+};
+
