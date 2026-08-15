@@ -5,6 +5,12 @@ import { createPortal } from "react-dom";
 import { useFormik } from "formik";
 import * as Yup from "yup";
 import CountUpModule from "react-countup";
+import {
+  isRegistrationOpen,
+  getSectionCtaText,
+  PRICE_ANNOUNCEMENT_TEXT,
+  DATE_TIME_ANNOUNCEMENT_TEXT,
+} from "@/utils/programStatus";
 
 const CountUp = (CountUpModule as any).default || CountUpModule;
 
@@ -145,6 +151,10 @@ const MASTERCLASS_CONFIG = {
   title: "AI for Advocates",
   amount: 499,
   programm_date: "2026-08-15",
+  sessionStatus: "announced",
+  classStartAt: "2026-08-15T10:30:00+05:30",
+  date: "15 August",
+  time: "10:30 AM - 01:30 PM IST",
   page_name: "ai-for-advocates",
   whatsapp_programm_name: "3-hour AI for Advocates masterclass",
   whatsapp_schedule: "Saturday, August 15, 2026 10:30 AM - 01:30 PM IST",
@@ -167,7 +177,48 @@ const validationSchema = Yup.object().shape({
   experience: Yup.string().optional()
 });
 
+const getUTM = (key: string) => {
+  if (typeof window === "undefined") return "";
+  try {
+    return localStorage.getItem(key) || "";
+  } catch {
+    return "";
+  }
+};
+
+const getApiBaseUrl = () => {
+  if (
+    typeof window !== "undefined" &&
+    (window.location.hostname === "localhost" ||
+      window.location.hostname === "127.0.0.1")
+  ) {
+    return (
+      process.env.NEXT_PUBLIC_LOCALHOST_API_URL ||
+      "http://localhost:8000/api/v1"
+    );
+  }
+  const server = process.env.NEXT_PUBLIC_API_SERVER;
+  if (server === "production") {
+    return (
+      process.env.NEXT_PUBLIC_PRODUCTION_API_URL ||
+      "https://invictusleadbackend-production.up.railway.app/api/v1"
+    );
+  }
+  if (server === "stage") {
+    return (
+      process.env.NEXT_PUBLIC_STAGE_API_URL ||
+      "https://stageapi.invictusglobaltech.com/api/v1"
+    );
+  }
+  return (
+    process.env.NEXT_PUBLIC_LOCALHOST_API_URL ||
+    "http://localhost:8000/api/v1"
+  );
+};
+
 function RegistrationForm({ compact = false }: { compact?: boolean }) {
+  const registrationOpen = isRegistrationOpen(MASTERCLASS_CONFIG);
+
   const [isInstructionOpen, setIsInstructionOpen] = useState(false);
   const [agree, setAgree] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -199,10 +250,83 @@ function RegistrationForm({ compact = false }: { compact?: boolean }) {
     },
     validationSchema: validationSchema,
     onSubmit: () => {
+      if (!registrationOpen) {
+        handleWaitlistSubmit();
+        return;
+      }
       setAgree(false);
       setIsInstructionOpen(true);
     }
   });
+
+  const handleWaitlistSubmit = async () => {
+    setIsProcessing(true);
+    setProcessingMessage("Adding you to the waitlist...");
+
+    const { name, email, mobile, experience } = formik.values;
+    const cleanMobile = mobile.replace(/\s+/g, "");
+
+    const waitlistPayload = {
+      name: name || "",
+      email: email,
+      mobile: `+91${cleanMobile}`,
+      yearsOfPractice: experience,
+      amount: "",
+      programm_date: MASTERCLASS_CONFIG.programm_date,
+      razorpay_order_id: "",
+      razorpay_payment_id: "",
+      razorpay_signature: "",
+      payment_status: "waitlist",
+      captured: "",
+      page_name: MASTERCLASS_CONFIG.page_name,
+      ip_address: ipAddress,
+      utm_source: getUTM("utm_source"),
+      utm_medium: getUTM("utm_medium"),
+      utm_campaign: getUTM("utm_campaign"),
+      utm_term: getUTM("utm_term"),
+      utm_content: getUTM("utm_content"),
+    };
+
+    // Submit to Google Sheets
+    try {
+      const params = new URLSearchParams();
+      Object.entries(waitlistPayload).forEach(([key, value]) =>
+        params.append(key, String(value ?? ""))
+      );
+
+      await fetch(MASTERCLASS_CONFIG.google_sheet_url, {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: params.toString(),
+      });
+    } catch (err) {
+      console.error("Failed to save to Google Sheets:", err);
+    }
+
+    // Submit to Invictus Lead Backend API
+    try {
+      const baseUrl = getApiBaseUrl();
+      await fetch(`${baseUrl}/vls-ai-for-advocates/register`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Client-Key": "vls_law",
+        },
+        body: JSON.stringify(waitlistPayload),
+      });
+    } catch (err) {
+      console.error("Failed to save to Invictus Backend API:", err);
+    }
+
+    // Store in LocalStorage and redirect
+    try {
+      localStorage.setItem("PaymentDetails", JSON.stringify(waitlistPayload));
+    } catch (err) {
+      console.error("Failed to save local details:", err);
+    }
+
+    window.location.href = "/thank-you";
+  };
 
   const handleAgreeAndPay = async () => {
     setIsInstructionOpen(false);
@@ -252,16 +376,6 @@ function RegistrationForm({ compact = false }: { compact?: boolean }) {
             return;
           }
 
-          // Read UTM Parameters
-          const getUTM = (key: string) => {
-            if (typeof window === "undefined") return "";
-            try {
-              return localStorage.getItem(key) || "";
-            } catch {
-              return "";
-            }
-          };
-
           // Build final payload
           const apiPayload = {
             name: name || "",
@@ -302,36 +416,6 @@ function RegistrationForm({ compact = false }: { compact?: boolean }) {
 
           // Submit to Invictus Lead Backend API
           try {
-            const getApiBaseUrl = () => {
-              if (
-                typeof window !== "undefined" &&
-                (window.location.hostname === "localhost" ||
-                  window.location.hostname === "127.0.0.1")
-              ) {
-                return (
-                  process.env.NEXT_PUBLIC_LOCALHOST_API_URL ||
-                  "http://localhost:8000/api/v1"
-                );
-              }
-              const server = process.env.NEXT_PUBLIC_API_SERVER;
-              if (server === "production") {
-                return (
-                  process.env.NEXT_PUBLIC_PRODUCTION_API_URL ||
-                  "https://invictusleadbackend-production.up.railway.app/api/v1"
-                );
-              }
-              if (server === "stage") {
-                return (
-                  process.env.NEXT_PUBLIC_STAGE_API_URL ||
-                  "https://stageapi.invictusglobaltech.com/api/v1"
-                );
-              }
-              return (
-                process.env.NEXT_PUBLIC_LOCALHOST_API_URL ||
-                "http://localhost:8000/api/v1"
-              );
-            };
-
             const baseUrl = getApiBaseUrl();
             await fetch(`${baseUrl}/vls-ai-for-advocates/register`, {
               method: "POST",
@@ -384,9 +468,13 @@ function RegistrationForm({ compact = false }: { compact?: boolean }) {
       >
         {!compact && (
           <div className="form-heading">
-            <span>Secure enrollment</span>
-            <h3>Register & Enroll</h3>
-            <p>Complete your payment to secure your seat for the Masterclass.</p>
+            <span>{registrationOpen ? "Secure enrollment" : "Early access"}</span>
+            <h3>{registrationOpen ? "Register & Enroll" : "Join Waitlist"}</h3>
+            <p>
+              {registrationOpen
+                ? "Complete your payment to secure your seat for the Masterclass."
+                : "Registration for this batch is closed. Join the waitlist to be notified when the next batch opens."}
+            </p>
           </div>
         )}
         <label>
@@ -445,15 +533,17 @@ function RegistrationForm({ compact = false }: { compact?: boolean }) {
           />
         </label>
         <button className="primary-button form-button interactive-button" type="submit" aria-live="polite">
-          Pay & Enroll — Rs.{MASTERCLASS_CONFIG.amount}
+          {registrationOpen ? `Pay & Enroll — Rs.${MASTERCLASS_CONFIG.amount}` : "Join Waitlist"}
         </button>
         {!compact && (
           <div className="form-trust" aria-label="Registration benefits">
             <span>✓ Instant WhatsApp confirmation</span>
-            <span>✓ 100% Secure Checkout</span>
+            <span>{registrationOpen ? "✓ 100% Secure Checkout" : "✓ Priority notice for next batch"}</span>
           </div>
         )}
-        <small role="status" aria-live="polite">Secure transaction processed by Razorpay</small>
+        <small role="status" aria-live="polite">
+          {registrationOpen ? "Secure transaction processed by Razorpay" : "We'll notify you the moment the next batch opens."}
+        </small>
       </form>
 
       {/* Payment Instruction Modal */}
@@ -546,6 +636,7 @@ function AnimatedCounter({
 }
 
 export default function Home() {
+  const registrationOpen = isRegistrationOpen(MASTERCLASS_CONFIG);
   const [menuOpen, setMenuOpen] = useState(false);
   const [headerScrolled, setHeaderScrolled] = useState(false);
   const [activeVideo, setActiveVideo] = useState<string | null>(null);
@@ -690,9 +781,13 @@ export default function Home() {
             <a href="#curriculum" onClick={closeMenu}>Curriculum</a>
             <a href="#faculty" onClick={closeMenu}>Faculty</a>
             <a href="#faq" onClick={closeMenu}>FAQs</a>
-            <a className="mobile-nav-cta" href="#register" onClick={closeMenu}>Join early access</a>
+            <a className="mobile-nav-cta" href="#register" onClick={closeMenu}>
+              {getSectionCtaText(MASTERCLASS_CONFIG, "Join early access")}
+            </a>
           </nav>
-          <a className="header-cta interactive-button" href="#register">Join early access</a>
+          <a className="header-cta interactive-button" href="#register">
+            {getSectionCtaText(MASTERCLASS_CONFIG, "Join early access")}
+          </a>
         </div>
       </header>
 
@@ -720,11 +815,16 @@ export default function Home() {
               <div><b>×</b><span><strong>Not a Substitute to Advocate</strong>Judgment and accountability stay with the advocate.</span></div>
             </div>
             <div className="hero-actions">
-              <a className="primary-button interactive-button" href="#register">Register for early access <span>↗</span></a>
+              <a className="primary-button interactive-button" href="#register">
+                {getSectionCtaText(MASTERCLASS_CONFIG, "Register for early access")} <span>↗</span>
+              </a>
               <a className="text-link" href="#curriculum">Explore the curriculum <span>↓</span></a>
             </div>
             <div className="event-note">
-              <span className="pulse" /> Date: 15 August · Mode: Online · Language: Tamil · Fee: ₹499
+              <span className="pulse" />{" "}
+              {registrationOpen
+                ? "Date: 15 August · Mode: Online · Language: Tamil · Fee: ₹499"
+                : `${DATE_TIME_ANNOUNCEMENT_TEXT} · Mode: Online · Language: Tamil · ${PRICE_ANNOUNCEMENT_TEXT}`}
             </div>
           </div>
           <div className="hero-side">
@@ -918,7 +1018,7 @@ export default function Home() {
 
       <section className="section outcomes-section">
         <div className="container outcomes-grid">
-          <div className="outcomes-copy"><span className="kicker">What you will gain</span><h2>Leave with a system—not a list of tools.</h2><p>Build a repeatable way to think, prepare, draft, and verify while keeping the advocate firmly in control.</p><a className="primary-button interactive-button" href="#register">Join early access <span>↗</span></a></div>
+          <div className="outcomes-copy"><span className="kicker">What you will gain</span><h2>Leave with a system—not a list of tools.</h2><p>Build a repeatable way to think, prepare, draft, and verify while keeping the advocate firmly in control.</p><a className="primary-button interactive-button" href="#register">{getSectionCtaText(MASTERCLASS_CONFIG, "Join early access")} <span>↗</span></a></div>
           <div className="outcome-list">
             {outcomes.map((outcome, index) => <div key={outcome}><span>{String(index + 1).padStart(2, "0")}</span>{outcome}</div>)}
           </div>
@@ -1003,7 +1103,15 @@ export default function Home() {
         <div className="container faq-grid">
           <div className="faq-intro"><span className="kicker">Frequently asked questions</span><h2>Clear answers before you begin.</h2><p>Have another question? Speak with the VLS team on WhatsApp or call us directly.</p><a href="https://wa.me/919500025216" target="_blank" rel="noreferrer" className="text-link">Ask VLS on WhatsApp <span>↗</span></a></div>
           <div className="faq-list">
-            {faqs.map(([question, answer]) => <details key={question}><summary>{question}<span>+</span></summary><p>{answer}</p></details>)}
+            {faqs.map(([question, answer]) => {
+              const displayAnswer =
+                !registrationOpen && question.includes("date, fee")
+                  ? "Registration for this batch is closed. Join the waitlist to get notified about the next batch's dates and pricing."
+                  : answer;
+              return (
+                <details key={question}><summary>{question}<span>+</span></summary><p>{displayAnswer}</p></details>
+              );
+            })}
           </div>
         </div>
       </section>
@@ -1013,12 +1121,16 @@ export default function Home() {
           <div className="enrollment-copy">
             <span className="kicker light">Early access enrollment</span>
             <h2>Your legal knowledge.<br /><em>Enhanced by AI.</em></h2>
-            <p>Register now to secure your spot for the masterclass on 15 August, conducted online in Tamil.</p>
+            <p>
+              {registrationOpen
+                ? "Register now to secure your spot for the masterclass on 15 August, conducted online in Tamil."
+                : "Registration for this batch is closed. Join the waitlist to be notified about the next batch."}
+            </p>
             <div className="event-tags">
-              <span>Date · 15 August</span>
+              <span>{registrationOpen ? "Date · 15 August" : "Date · Announcing soon"}</span>
               <span>Mode · Online</span>
               <span>Language · Tamil</span>
-              <span>Fee · ₹499</span>
+              <span>{registrationOpen ? "Fee · ₹499" : "Fee · Announcing soon"}</span>
             </div>
           </div>
           <RegistrationForm compact />
